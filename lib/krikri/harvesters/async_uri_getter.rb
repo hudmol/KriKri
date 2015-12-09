@@ -6,10 +6,10 @@ require 'uri'
 class AsyncUriGetter
   def add_request(uri: '', headers: {})
     raise 'uri must be a URI' unless uri.is_a?(URI)
-    Request.new(uri, headers: headers)
+    Request.new(uri, headers)
   end
 
-  Request = Struct.new :uri, :headers do
+  Request = Struct.new(:uri, :headers) do
     def initialize(*)
       super
       @request_thread = start_request
