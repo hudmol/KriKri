@@ -15,6 +15,10 @@ class AsyncUriGetter
       @request_thread = start_request
     end
 
+    def join
+      @request_thread.join
+    end
+
     def with_response
       yield(@request_thread.value)
     end
