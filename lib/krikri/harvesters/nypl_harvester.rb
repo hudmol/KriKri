@@ -75,7 +75,7 @@ module Krikri::Harvesters
     end
 
     ##
-    # @return [Enumerator::Lazy] an enumerator of the records targeted by this
+    # @return [Enumerator] an enumerator of the records targeted by this
     #   harvester.
     def records
       Enumerator.new do |en|
