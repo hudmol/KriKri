@@ -20,7 +20,7 @@ module Krikri::Harvesters
     # @example
     #    Typical instantiation, good for most cases:
     #
-    #        Krikri::Harvesters::NyplHarvester.new(apikey: '[key]')
+    #        Krikri::Harvesters::NyplHarvester.new(nypl: { apikey: '[key]' })
     #
     # Parameters to 'opts':
     #
@@ -65,8 +65,9 @@ module Krikri::Harvesters
             Integer(Nokogiri::XML(response.body)
                      .xpath('//nyplAPI/response/numResults')[0].text)
           else
-            Krikri::Logger.log(:error, "request failed for URI #{req.uri}")
-            raise
+            msg = "request failed for URI #{req.uri}"
+            Krikri::Logger.log(:error, msg)
+            raise msg
           end
         end
       end
@@ -127,8 +128,9 @@ module Krikri::Harvesters
           Integer(Nokogiri::XML(response.body)
                    .xpath('//nyplAPI/request/totalPages').text)
         else
-          Krikri::Logger.log(:error, "request failed for URI #{req.uri}")
-          raise
+          msg = "request failed for URI #{req.uri}"
+          Krikri::Logger.log(:error, msg)
+          raise msg
         end
       end
     end
@@ -151,41 +153,42 @@ module Krikri::Harvesters
         }
       end
 
-      # We need to fetch the MODS record for each item.  Do that in parallel.
-      record_list.each_slice(@opts[:threads]) do |sublist|
-        fetch_item_records(sublist)
-      end
+      mods_urls = record_list.map { |r| r[:mods_item_url] }
+      mods_records = fetch_item_mods_records(mods_urls)
 
-      record_list.map do |record|
-        item_record = record[:mods_item_record]
-                      .xpath('//nyplAPI/response/mods')[0]
+      record_list.zip(mods_records).map do |record, mods_record|
+        # We won't have a record if the fetch failed for some reason.
+        next if mods_record.nil?
+
+        item_record = mods_record.xpath('//nyplAPI/response/mods')[0]
 
         item_record.add_namespace('mods', 'http://www.loc.gov/mods/v3')
-        item_record
-          .add_child('<extension />')[0]
+        item_record.add_child('<extension />')[0]
           .add_child(record[:capture_record])
 
         @record_class.build(mint_id(record[:identifier]), item_record.to_xml)
-      end
+      end.compact
     end
 
     ##
-    # @param list [List<Hash>] a list of hashes, each containing a
-    #   :mods_item_url to be fetched.
+    # @param list [List<String>] a list of mods URLs to fetch
     #
-    # @return [void] the :mods_item_record property of each hash will have been
-    #   populated with the XML MODS record for the item.
+    # @return [List<Nokogiri::XML::Document, nil>] the list of parsed MODS
+    #   records. The list may contain nils if fetching a given URL fails.
     #
-    def fetch_item_records(list)
-      requests = list.map { |record| request(record[:mods_item_url]) }
-      list.zip(requests).each do |record, request|
-        request.with_response do |response|
-          if response.code == '200'
-            record[:mods_item_record] = Nokogiri::XML(response.body)
-          else
-            Krikri::Logger.log(:error,
-                               "Failure when fetching #{request.uri}. " \
-                               'Record skipped')
+    def fetch_item_mods_records(urls)
+      urls.each_slice(@opts[:threads]).flat_map do |suburls|
+        requests = suburls.map { |url| request(url) }
+        requests.map do |request|
+          request.with_response do |response|
+            if response.code == '200'
+              Nokogiri::XML(response.body)
+            else
+              Krikri::Logger.log(:error,
+                                 "Failure when fetching #{request.uri}. " \
+                                 'Record skipped')
+              nil
+            end
           end
         end
       end
@@ -229,9 +232,9 @@ module Krikri::Harvesters
             .xpath('//nyplAPI/response/uuids/uuid')
             .map(&:text)
         else
-          Krikri::Logger.log(:error,
-                             "couldn't fetch collection list: #{response.body}")
-          raise
+          msg = "couldn't fetch collection list: #{response.body}"
+          Krikri::Logger.log(:error, msg)
+          raise msg
         end
       end
     end
