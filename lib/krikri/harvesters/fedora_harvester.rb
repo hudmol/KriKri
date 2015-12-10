@@ -1,40 +1,60 @@
 require 'uri'
-require_relative 'async_uri_getter'
+require 'async_uri_getter'
 
 module Krikri::Harvesters
   ##
   # A harvester implementation for Fedora 3
   #
-  # Accepts options passed as `:fedora => opts`
-  #
-  # Options allowed are:
-  #
-  #   - batch_size:  The number of records to fetch asynchronously
-  #                  in a batch (default: 10)
-  #   - max_records: The maximum number of records to harvest
-  #                  0 means no limit (default 0)
-  #
   class FedoraHarvester
     include Krikri::Harvester
 
-    FedoraHarvestError = Class.new(StandardError)
+    DEFAULT_THREAD_COUNT = 10
+    DEFAULT_MAX_RECORDS = 0
 
+    ##
+    # Initialize, and set default options as appropriate.
+    #
+    # @param opts [Hash] a hash of options as defined by {.expected_opts}
+    #
+    # @example
+    #    Typical instantiation, good for most cases:
+    #
+    #      Krikri::Harvesters::FedoraHarvester.new(uri: 'http://example.edu/fedora/...')
+    #
+    # Accepts options passed as `:fedora => opts`
+    #
+    # Options allowed are:
+    #
+    #   - threads:     The number of records to fetch asynchronously
+    #                  in a batch (default: 10)
+    #   - name:        See Krikri::Harvester#initialize.  Defaults to "fedora"
+    #   - max_records: The maximum number of records to harvest
+    #                  0 means no limit (default 0)
+    #
     def initialize(opts = {})
       @opts = opts.fetch(:fedora, {})
       super
 
-      @opts[:batch_size] ||= 10
-      @opts[:max_records] ||= 0
+      @opts[:threads] ||= DEFAULT_THREAD_COUNT
+      @opts[:max_records] ||= DEFAULT_MAX_RECORDS
 
-      @getter = AsyncUriGetter.new
-
-      @collection_mets = nil
-      @collection_mods = nil
-      @records_mets = nil
+      @http = AsyncUriGetter.new
     end
 
     ##
-    # @return [Integer] the number of records available for harvesting.
+    # @see Krikri::Harvester.expected_opts
+    def self.expected_opts
+      {
+        key: :fedora,
+        opts: {
+          threads:  { type: :integer, required: false },
+          max_records:  { type: :integer, required: false }
+        }
+      }
+    end
+
+    ##
+    # @see Krikri::Harvester#count
     def count
       Integer(records_mets.count)
     end
@@ -43,7 +63,7 @@ module Krikri::Harvesters
     # @return [Enumerator::Lazy] an enumerator of the records targeted by this
     #   harvester.
     def records
-      batch_size = @opts.fetch(:batch_size)
+      batch_size = @opts.fetch(:threads)
       max_records = @opts.fetch(:max_records)
       last_record = max_records == 0 ? count : [count, max_records].min
 
@@ -70,14 +90,15 @@ module Krikri::Harvesters
       batch = []
       mets.each do |rec|
         uri = rec.xpath('mets:mdRef').first.attribute('href').value
-        batch << { :request => @getter.add_request(uri: URI.parse(uri)),
+        batch << { :request => @http.add_request(uri: URI.parse(uri)),
                    :id => rec.attribute('ID').value }
       end
 
       batch.lazy.map do |record|
         record[:request].with_response do |response|
           unless response.code == '200'
-            raise FedoraHarvestError, "Couldn't get record #{record[:id]}"
+            Krikri::Logger.log(:error, "Couldn't get record #{record[:id]}")
+            raise
           end
           mods = Nokogiri::XML(response.body)
 
@@ -95,9 +116,10 @@ module Krikri::Harvesters
     def collection_mets
       return @collection_mets if @collection_mets
 
-      @getter.add_request(uri: URI.parse(uri)).with_response do |response|
+      @http.add_request(uri: URI.parse(uri)).with_response do |response|
         unless response.code == '200'
-          raise FedoraHarvestError, "Couldn't get collection mets file"
+          Krikri::Logger.log(:error, "Couldn't get collection mets file")
+          raise
         end
 
         @collection_mets = Nokogiri::XML(response.body)
@@ -112,9 +134,10 @@ module Krikri::Harvesters
                  .first
       uri = mods_ref.xpath('mets:mdRef').first.attribute('href').value
 
-      @getter.add_request(uri: URI.parse(uri)).with_response do |response|
+      @http.add_request(uri: URI.parse(uri)).with_response do |response|
         unless response.code == '200'
-          raise FedoraHarvestError, "Couldn't get collection mods file"
+          Krikri::Logger.log(:error, "Couldn't get collection mods file")
+          raise
         end
 
         @collection_mods = Nokogiri::XML(response.body)
