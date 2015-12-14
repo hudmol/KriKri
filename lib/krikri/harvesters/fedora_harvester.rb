@@ -97,8 +97,9 @@ module Krikri::Harvesters
       batch.lazy.map do |record|
         record[:request].with_response do |response|
           unless response.code == '200'
-            Krikri::Logger.log(:error, "Couldn't get record #{record[:id]}")
-            raise
+            msg = "Couldn't get record #{record[:id]}"
+            Krikri::Logger.log(:error, msg)
+            raise msg
           end
           mods = Nokogiri::XML(response.body)
 
@@ -118,8 +119,9 @@ module Krikri::Harvesters
 
       @http.add_request(uri: URI.parse(uri)).with_response do |response|
         unless response.code == '200'
-          Krikri::Logger.log(:error, "Couldn't get collection mets file")
-          raise
+          msg = "Couldn't get collection mets file"
+          Krikri::Logger.log(:error, msg)
+          raise msg
         end
 
         @collection_mets = Nokogiri::XML(response.body)
@@ -136,8 +138,9 @@ module Krikri::Harvesters
 
       @http.add_request(uri: URI.parse(uri)).with_response do |response|
         unless response.code == '200'
-          Krikri::Logger.log(:error, "Couldn't get collection mods file")
-          raise
+          msg = "Couldn't get collection mods file"
+          Krikri::Logger.log(:error, msg)
+          raise msg
         end
 
         @collection_mods = Nokogiri::XML(response.body)
