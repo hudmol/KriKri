@@ -77,7 +77,7 @@ module Krikri::Harvesters
     # @return [#to_s] the record
     def get_record(identifier)
       enumerate_records(collection_mets
-                        .xpath("//mets:dmdSec[@ID=\"#{identifier}\"]"))
+                        .xpath("//mets:dmdSec[@ID=\"#{identifier}\"]")).first
     end
 
     private
