@@ -12,7 +12,7 @@ module Krikri::Harvesters
     DEFAULT_THREAD_COUNT = 10
     DEFAULT_MAX_RECORDS = 0
 
-    DOWNLOAD_BASE_URI = 'http://archive.org/download/'
+    DOWNLOAD_BASE_URI = 'http://archive.org/download'
 
     ##
     # Initialize, and set default options as appropriate.
