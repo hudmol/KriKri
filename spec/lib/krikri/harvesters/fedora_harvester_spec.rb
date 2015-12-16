@@ -7,7 +7,6 @@ describe Krikri::Harvesters::FedoraHarvester, :webmock => true do
   let(:collection_url) { base_url + '/collection' }
   let(:record1_url) { base_url + '/record1' }
   let(:record2_url) { base_url + '/record2' }
-  let(:harvester) { Krikri::Harvesters::FedoraHarvester.new(uri: base_url) }
 
   let(:collection_mets) do
     <<-EOS
