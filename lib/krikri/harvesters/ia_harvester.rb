@@ -22,7 +22,7 @@ module Krikri::Harvesters
     # @example
     #    Typical instantiation, good for most cases:
     #
-    #      Krikri::Harvesters::FedoraHarvester.new(uri: 'http://archive.org/...')
+    #      Krikri::Harvesters::IaHarvester.new(uri: 'http://archive.org/...')
     #
     # Accepts options passed as `:ia => opts`
     #
@@ -30,7 +30,7 @@ module Krikri::Harvesters
     #
     #   - threads:     The number of records to fetch asynchronously
     #                  in a batch (default: 10)
-    #   - name:        See Krikri::Harvester#initialize.  Defaults to "fedora"
+    #   - name:        See Krikri::Harvester#initialize.  Defaults to "ia"
     #   - max_records: The maximum number of records to harvest
     #                  0 means no limit (default 0)
     #
