@@ -41,7 +41,7 @@ module Krikri::Harvesters
       @opts[:threads] ||= DEFAULT_THREAD_COUNT
       @opts[:max_records] ||= DEFAULT_MAX_RECORDS
 
-      @http = AsyncUriGetter.new
+      @http = AsyncUriGetter.new(opts: {follow_redirects: true})
     end
 
     ##
@@ -101,21 +101,8 @@ module Krikri::Harvesters
 
       batch.each do |record|
         record[:meta_request].with_response do |response|
-          unless response.code == '302'
-            msg = "Couldn't get meta redirect for #{record[:id]}"
-            Krikri::Logger.log(:error, msg)
-            raise msg
-          end
-          record[:meta_redirect] = @http.add_request(uri: URI.parse(response['location']))
-        end
-      end
-
-      batch.each { |r| r[:meta_redirect].join }
-
-      batch.each do |record|
-        record[:meta_redirect].with_response do |response|
           unless response.code == '200'
-            msg = "Couldn't get meta for #{record[:id]}"
+            msg = "Couldn't get meta for #{record[:id]}, got #{response.code}"
             Krikri::Logger.log(:error, msg)
             raise msg
           end
@@ -127,22 +114,9 @@ module Krikri::Harvesters
 
       batch.each { |r| r[:marc_request].join }
 
-      batch.each do |record|
-        record[:marc_request].with_response do |response|
-          unless response.code == '302'
-            msg = "Couldn't get marc redirect for #{record[:id]}"
-            Krikri::Logger.log(:error, msg)
-            raise msg
-          end
-          record[:marc_redirect] = @http.add_request(uri: URI.parse(response['location']))
-        end
-      end
-
-      batch.each { |r| r[:marc_redirect].join }
-
       batch.lazy.map do |record|
         if record.has_key?(:meta)
-          record[:marc_redirect].with_response do |response|
+          record[:marc_request].with_response do |response|
             if response.code == '200'
               marc = Nokogiri::XML(response.body)
               marc.remove_namespaces!
