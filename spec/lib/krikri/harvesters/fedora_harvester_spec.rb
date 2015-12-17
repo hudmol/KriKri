@@ -118,7 +118,7 @@ describe Krikri::Harvesters::FedoraHarvester, :webmock => true do
       expect(subject.records.count).to eq(2)
     end
 
-    it 'raises an exception on other failed request types' do
+    it 'raises an exception on failed requests' do
       stub_request(:get, "#{base_url}/record1")
         .to_return(status: 500, body: 'disaster strikes!', headers: {})
 
