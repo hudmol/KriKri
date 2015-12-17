@@ -153,8 +153,8 @@ module Krikri::Harvesters
         }
       end
 
-      mods_urls = record_list.map { |r| r[:mods_item_url] }
-      mods_records = fetch_item_mods_records(mods_urls)
+      mods_records =
+        fetch_item_mods_records(record_list.map { |r| r[:mods_item_url] })
 
       record_list.zip(mods_records).map do |record, mods_record|
         # We won't have a record if the fetch failed for some reason.
