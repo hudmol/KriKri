@@ -11,7 +11,7 @@ class AsyncUriGetter
 
   def add_request(uri: '', headers: {}, opts: {})
     raise 'uri must be a URI' unless uri.is_a?(URI)
-    Request.new(uri, headers, {follow_redirects: follow_redirects(opts)})
+    Request.new(uri, headers, follow_redirects: follow_redirects(opts))
   end
 
   Request = Struct.new(:uri, :headers, :opts) do
@@ -47,7 +47,7 @@ class AsyncUriGetter
           response = http.request(request)
 
           break unless @follow_redirects
-          break unless response.kind_of? Net::HTTPRedirection
+          break unless response.is_a? Net::HTTPRedirection
 
           if response['location']
             uri_to_try = URI.parse(response['location'])
@@ -65,7 +65,7 @@ class AsyncUriGetter
   private
 
   def follow_redirects(opts: {})
-    if opts.has_key?(:follow_redirects)
+    if opts.key?(:follow_redirects)
       opts[:follow_redirects]
     else
       @follow_redirects
