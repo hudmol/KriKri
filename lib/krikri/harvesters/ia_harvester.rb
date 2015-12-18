@@ -104,7 +104,7 @@ module Krikri::Harvesters
           unless response.code == '200'
             msg = "Couldn't get meta for #{record[:id]}, got #{response.code}"
             Krikri::Logger.log(:error, msg)
-            raise msg
+            next
           end
           record[:meta] = Nokogiri::XML(response.body)
           marc_uri = "#{DOWNLOAD_BASE_URI}/#{record[:id]}/#{record[:id]}_marc.xml"
@@ -112,20 +112,20 @@ module Krikri::Harvesters
         end
       end
 
+      batch.select! { |r| r[:meta] }
       batch.each { |r| r[:marc_request].join }
 
       batch.lazy.map do |record|
-        if record.has_key?(:meta)
-          record[:marc_request].with_response do |response|
-            if response.code == '200'
-              marc = Nokogiri::XML(response.body)
-              marc.remove_namespaces!
-              record[:meta].child.add_child('<marc />')[0]
-                .add_child(marc.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::NO_DECLARATION))
-            end
-
-            @record_class.build(mint_id(record[:id]), record[:meta].to_xml)
+        record[:marc_request].with_response do |response|
+          if response.code == '200'
+            marc = Nokogiri::XML(response.body)
+            # removing namespaces to allow xpath to work correctly in the mapper
+            marc.remove_namespaces!
+            record[:meta].child.add_child('<marc />')[0]
+              .add_child(marc.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::NO_DECLARATION))
           end
+
+          @record_class.build(mint_id(record[:id]), record[:meta].to_xml)
         end
       end
     end
@@ -139,6 +139,7 @@ module Krikri::Harvesters
         unless response.code == '200'
           msg = "Couldn't get search page"
           Krikri::Logger.log(:error, msg)
+          # we can't really continue
           raise msg
         end
 
@@ -150,7 +151,7 @@ module Krikri::Harvesters
     # Get a page of record identifiers for the collection
     # @return [Array] list of identifiers
     def record_ids(start: 0, rows: @opts[:threads])
-      collection_search['response']['docs'].map { |d| d['identifier'] }
+      collection_search(start: start, rows: rows)['response']['docs'].map { |d| d['identifier'] }
     end
   end
 end

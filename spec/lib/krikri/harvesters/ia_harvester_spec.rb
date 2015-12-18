@@ -161,11 +161,21 @@ describe Krikri::Harvesters::IaHarvester, :webmock => true do
       expect(subject.records.count).to eq(4)
     end
 
-    it 'raises an exception on failed requests' do
+    it 'pages correctly' do
+      id = 1
+      subject.records.each do |r|
+        parsed = Nokogiri::XML(r.content)
+        expect(parsed.xpath('//metadata/title')[0].text)
+          .to eq("A Title for id#{id}")
+        id += 1
+      end
+    end
+
+    it 'keeps going after hitting a bad record' do
       stub_request(:get, "#{base_download_url}/id1/id1_meta.xml")
         .to_return(status: 500, body: 'disaster strikes!', headers: {})
 
-      expect { subject.records.count }.to raise_error(/Couldn't get meta redirect for id1/)
+      expect(subject.records.count).to eq(3)
     end
 
     describe 'threading' do
