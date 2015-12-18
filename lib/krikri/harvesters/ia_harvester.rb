@@ -41,7 +41,7 @@ module Krikri::Harvesters
       @opts[:threads] ||= DEFAULT_THREAD_COUNT
       @opts[:max_records] ||= DEFAULT_MAX_RECORDS
 
-      @http = AsyncUriGetter.new(opts: {follow_redirects: true})
+      @http = AsyncUriGetter.new(opts: { follow_redirects: true })
     end
 
     ##
@@ -107,8 +107,8 @@ module Krikri::Harvesters
             next
           end
           record[:meta] = Nokogiri::XML(response.body)
-          marc_uri = "#{DOWNLOAD_BASE_URI}/#{record[:id]}/#{record[:id]}_marc.xml"
-          record[:marc_request] = @http.add_request(uri: URI.parse(marc_uri))
+          marc = "#{DOWNLOAD_BASE_URI}/#{record[:id]}/#{record[:id]}_marc.xml"
+          record[:marc_request] = @http.add_request(uri: URI.parse(marc))
         end
       end
 
@@ -121,8 +121,9 @@ module Krikri::Harvesters
             marc = Nokogiri::XML(response.body)
             # removing namespaces to allow xpath to work correctly in the mapper
             marc.remove_namespaces!
+            save_with_opt = Nokogiri::XML::Node::SaveOptions::NO_DECLARATION
             record[:meta].child.add_child('<marc />')[0]
-              .add_child(marc.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::NO_DECLARATION))
+              .add_child(marc.to_xml(save_with: save_with_opt))
           end
 
           @record_class.build(mint_id(record[:id]), record[:meta].to_xml)
@@ -151,7 +152,9 @@ module Krikri::Harvesters
     # Get a page of record identifiers for the collection
     # @return [Array] list of identifiers
     def record_ids(start: 0, rows: @opts[:threads])
-      collection_search(start: start, rows: rows)['response']['docs'].map { |d| d['identifier'] }
+      collection_search(start: start, rows: rows)['response']['docs'].map do |d|
+        d['identifier']
+      end
     end
   end
 end
