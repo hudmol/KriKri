@@ -94,12 +94,12 @@ module Krikri::Harvesters
                    :id => rec.attribute('ID').value }
       end
 
-      batch.lazy.map do |record|
+      batch.lazy.flat_map do |record|
         record[:request].with_response do |response|
           unless response.code == '200'
             msg = "Couldn't get record #{record[:id]}"
             Krikri::Logger.log(:error, msg)
-            raise msg
+            next []
           end
           mods = Nokogiri::XML(response.body)
 

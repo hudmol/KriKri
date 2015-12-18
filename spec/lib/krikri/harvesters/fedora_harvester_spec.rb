@@ -118,11 +118,11 @@ describe Krikri::Harvesters::FedoraHarvester, :webmock => true do
       expect(subject.records.count).to eq(2)
     end
 
-    it 'raises an exception on failed requests' do
+    it 'keeps going after hitting a bad record' do
       stub_request(:get, "#{base_url}/record1")
         .to_return(status: 500, body: 'disaster strikes!', headers: {})
 
-      expect { subject.records.count }.to raise_error(/Couldn't get record/)
+      expect(subject.records.count).to eq(1)
     end
 
     describe 'threading' do
