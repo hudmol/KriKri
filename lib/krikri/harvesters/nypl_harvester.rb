@@ -1,5 +1,3 @@
-require 'async_uri_getter'
-
 module Krikri::Harvesters
   ##
   # A harvester for NYPL's API
@@ -40,7 +38,7 @@ module Krikri::Harvesters
 
       super({ uri: DEFAULT_URI }.merge(opts))
 
-      @http = AsyncUriGetter.new
+      @http = Krikri::AsyncUriGetter.new
     end
 
     ##
@@ -61,7 +59,7 @@ module Krikri::Harvesters
       collection_counts = list_collections.map do |collection_uuid|
         req = request("/items/#{collection_uuid}", page: 1, per_page: 0)
         req.with_response do |response|
-          if response.code == '200'
+          if response.status == 200
             Integer(Nokogiri::XML(response.body)
                      .xpath('//nyplAPI/response/numResults')[0].text)
           else
@@ -98,7 +96,7 @@ module Krikri::Harvesters
 
             requests.each do |request|
               request.with_response do |response|
-                if response.code == '200'
+                if response.status == 200
                   enumerate_records(response.body).each { |doc| en << doc }
                 else
                   msg = "request failed for URI #{request.uri}"
@@ -124,7 +122,7 @@ module Krikri::Harvesters
     def collection_page_count(collection_uuid, page_size)
       req = request("/items/#{collection_uuid}", page: 1, per_page: page_size)
       req.with_response do |response|
-        if response.code == '200'
+        if response.status == 200
           Integer(Nokogiri::XML(response.body)
                    .xpath('//nyplAPI/request/totalPages').text)
         else
@@ -181,7 +179,7 @@ module Krikri::Harvesters
         requests = suburls.map { |url| request(url) }
         requests.map do |request|
           request.with_response do |response|
-            if response.code == '200'
+            if response.status == 200
               Nokogiri::XML(response.body)
             else
               Krikri::Logger.log(:error,
@@ -227,7 +225,7 @@ module Krikri::Harvesters
     #
     def list_collections
       request('/items/roots').with_response do |response|
-        if response.code == '200'
+        if response.status == 200
           Nokogiri::XML(response.body)
             .xpath('//nyplAPI/response/uuids/uuid')
             .map(&:text)

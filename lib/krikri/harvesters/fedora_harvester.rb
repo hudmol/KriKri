@@ -1,6 +1,3 @@
-require 'uri'
-require 'async_uri_getter'
-
 module Krikri::Harvesters
   ##
   # A harvester implementation for Fedora 3
@@ -38,7 +35,7 @@ module Krikri::Harvesters
       @opts[:threads] ||= DEFAULT_THREAD_COUNT
       @opts[:max_records] ||= DEFAULT_MAX_RECORDS
 
-      @http = AsyncUriGetter.new
+      @http = Krikri::AsyncUriGetter.new
     end
 
     ##
@@ -96,7 +93,7 @@ module Krikri::Harvesters
 
       batch.lazy.flat_map do |record|
         record[:request].with_response do |response|
-          unless response.code == '200'
+          unless response.status == 200
             msg = "Couldn't get record #{record[:id]}"
             Krikri::Logger.log(:error, msg)
             next []
@@ -118,7 +115,7 @@ module Krikri::Harvesters
       return @collection_mets if @collection_mets
 
       @http.add_request(uri: URI.parse(uri)).with_response do |response|
-        unless response.code == '200'
+        unless response.status == 200
           msg = "Couldn't get collection mets file"
           Krikri::Logger.log(:error, msg)
           raise msg
@@ -137,7 +134,7 @@ module Krikri::Harvesters
       uri = mods_ref.xpath('mets:mdRef').first.attribute('href').value
 
       @http.add_request(uri: URI.parse(uri)).with_response do |response|
-        unless response.code == '200'
+        unless response.status == 200
           msg = "Couldn't get collection mods file"
           Krikri::Logger.log(:error, msg)
           raise msg

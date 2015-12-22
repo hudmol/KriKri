@@ -1,6 +1,4 @@
-require 'uri'
 require 'json'
-require 'async_uri_getter'
 
 module Krikri::Harvesters
   ##
@@ -41,7 +39,7 @@ module Krikri::Harvesters
       @opts[:threads] ||= DEFAULT_THREAD_COUNT
       @opts[:max_records] ||= DEFAULT_MAX_RECORDS
 
-      @http = AsyncUriGetter.new(opts: { follow_redirects: true })
+      @http = Krikri::AsyncUriGetter.new(opts: { follow_redirects: true })
     end
 
     ##
@@ -101,8 +99,8 @@ module Krikri::Harvesters
 
       batch.each do |record|
         record[:meta_request].with_response do |response|
-          unless response.code == '200'
-            msg = "Couldn't get meta for #{record[:id]}, got #{response.code}"
+          unless response.status == 200
+            msg = "Couldn't get meta for #{record[:id]}, got #{response.status}"
             Krikri::Logger.log(:error, msg)
             next
           end
@@ -117,7 +115,7 @@ module Krikri::Harvesters
 
       batch.lazy.map do |record|
         record[:marc_request].with_response do |response|
-          if response.code == '200'
+          if response.status == 200
             marc = Nokogiri::XML(response.body)
             # removing namespaces to allow xpath to work correctly in the mapper
             marc.remove_namespaces!
@@ -137,7 +135,7 @@ module Krikri::Harvesters
     def collection_search(start: 0, rows: @opts[:threads])
       @http.add_request(uri: URI.parse("#{uri}&start=#{start}&rows=#{rows}"))
         .with_response do |response|
-        unless response.code == '200'
+        unless response.status == 200
           msg = "Couldn't get search page"
           Krikri::Logger.log(:error, msg)
           # we can't really continue
